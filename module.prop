@@ -1,0 +1,6 @@
+id=touch-reset
+name=​Touch-Driver-Fixer
+version=v1.0
+versionCode=1
+author=kiyotti
+description=対ひまっせタイマーモジュール。ホームキーのタップを検知し、タッチパネルドライバ(NVT-ts)を最適にリバインドします。ログ：logcat -s HOMEKEY_MOD
