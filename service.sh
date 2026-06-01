@@ -1,40 +1,47 @@
 #!/system/bin/sh
-# =====================================================================
-# Home Key Touch-Driver Rebinder (Final Module Version)
-# =====================================================================
 
-# --- 設定項目 ---
-DEV="/dev/input/event1"
-DRV="NVT-ts"
-NODE="3-0062"
-WAIT_TIME=450000 # 0.32秒
+# ==========================================================
+# Touch Driver Fixer
+# NVT Touch Recovery
+# ==========================================================
 
-# --- 競合防止 ---
-# 既に同じスクリプトが動いている場合は、古い方を落として二重起動を防ぐ
-MY_PID=$$
-OLD_PIDS=$(pgrep -f "service.sh" | grep -v "$MY_PID")
-if [ -n "$OLD_PIDS" ]; then
-  kill -9 $OLD_PIDS 2>/dev/null
-fi
+# ----- 起動時に1回だけ -----
 
-log -t HOMEKEY_MOD "監視サービスがバックグラウンドで起動しました (PID: $MY_PID)"
+echo 1 > /sys/bus/i2c/devices/3-0062/tp_palm_reject 2>/dev/null
 
-# --- メイン処理 ---
-click_pending=0
+for p in /sys/devices/platform/soc/soc:touch@*/power/control
+do
+    [ -e "$p" ] && echo on > "$p" 2>/dev/null
+done
 
-while true; do
-  # 詰まりを起こさない単発取得モード
-  line=$(getevent -c 1 "$DEV" 2>/dev/null)
-  [ -z "$line" ] && continue
+log -t TOUCH_FIXER "service started"
 
-  if echo "$line" | grep -q "0066"; then
-    case "$line" in
-      *00000001*)
-        # DOWN (押された): 保留をクリア
-        click_pending=0
-        ;;
-      *)
-        # UP (離された): 保留フラグをセット
+# ----- 多重起動防止 -----
+
+LOCK=/dev/.nvt_fix_running
+
+# ----- HOMEキー監視 -----
+
+while true
+do
+    line=$(getevent -c 1 /dev/input/event1 2>/dev/null)
+
+    # KEY_HOME UP
+    [ "$line" != "0001 0066 00000000" ] && continue
+
+    # selftest実行中なら無視
+    [ -e "$LOCK" ] && continue
+
+    (
+        touch "$LOCK"
+
+        log -t TOUCH_FIXER "HOME UP -> NVT selftest"
+
+        cat /proc/nvt_selftest > /dev/null 2>/dev/null
+
+        rm -f "$LOCK"
+    ) &
+done        # UP (離された): 保留フラグをセット
         click_pending=1
         ;;
     esac
