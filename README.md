@@ -69,6 +69,7 @@ logcat -s HOMEKEY_MOD
 動作確認済み
 
 - チャレンジパッドnext(nvt)
+
 実験的サポート
 
 - next(FTS)
