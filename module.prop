@@ -1,8 +1,7 @@
 id=touch-reset
-name=Touch Driver Fixer
-version=v1.1
-versionCode=2
+name=Touch Driver Fixer & HomeButton Disable
+version=v2.0
+versionCode=3
 author=kiyotti
-
-description=チャレンジタッチのタッチパネルフリーズ（ 通称ひまっせタイマー）を直します。また、ホームボタンで画面リフレッシュします。
+description=【大型アップデート】タッチフリーズ対策とホームボタン無効化の統合版。adivenxnataly版「KsuWebUI」に対応し、検索利便性を大幅向上！アプリごとに「高速」と「安定」を個別に指定可能です（未設定時は自動で高速版）。
 updateJson=https://raw.githubusercontent.com/kiyotti1/Touch-Driver-Fixer-module/main/update.json
