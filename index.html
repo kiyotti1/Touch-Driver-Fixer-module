@@ -12,76 +12,211 @@
             --text: #ffffff;
             --text-sub: #9ea4b0;
             --border: #32323a;
+            --accent: #4CAF50;
         }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 16px; background: var(--bg); color: var(--text); -webkit-tap-highlight-color: transparent; }
-        h2 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 4px; padding-bottom: 6px; border-bottom: 2px solid var(--primary); }
+        * { box-sizing: border-box; }
         
-        /* 解説とハテナボタンの並び */
-        .hint-container { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
-        .hint { font-size: 12px; color: var(--text-sub); line-height: 1.4; margin: 0; flex-grow: 1; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 16px; 
+            background: var(--bg); 
+            color: var(--text); 
+            -webkit-tap-highlight-color: transparent; 
+            padding-bottom: 80px;
+            overflow-x: hidden;
+        }
+        h2 { font-size: 20px; font-weight: 700; color: #fff; margin: 0 0 16px 0; padding-bottom: 6px; border-bottom: 2px solid var(--primary); }
         
-        /* まるで囲ったハテナボタン */
-        .help-btn { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--text-sub); color: var(--text-sub); font-size: 11px; font-weight: bold; cursor: pointer; user-select: none; flex-shrink: 0; margin-top: 2px; transition: all 0.2s; }
-        .help-btn:active { background: rgba(255, 255, 255, 0.1); color: #fff; border-color: #fff; }
+        /* 緑に輝くドライババッジ */
+        .driver-badge { 
+            display: inline-flex; 
+            align-items: center; 
+            font-size: 12px; 
+            background: #1e2922; 
+            color: #4CAF50; 
+            padding: 6px 14px; 
+            border-radius: 20px; 
+            border: 1px solid #2e4c39; 
+            margin-bottom: 16px; 
+            font-weight: 600; 
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.15);
+        }
+        .driver-badge::before {
+            content: "";
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            margin-right: 8px;
+            box-shadow: 0 0 8px var(--accent);
+        }
         
-        /* 説明ボックスの見た目 */
-        .help-box { display: none; background: #2f2f36; border-left: 3px solid var(--primary); padding: 10px 12px; border-radius: 4px; margin-bottom: 16px; font-size: 12px; line-height: 1.5; color: #fff; }
-        .help-box p { margin: 0 0 6px 0; }
-        .help-box p:last-child { margin: 0; }
-        .help-box b { color: var(--primary); }
+        /* ページ管理 */
+        .page { display: none; width: 100%; }
+        .page.active { display: block; }
 
-        /* 検索ボックスのコンテナ設定 */
-        .search-container { position: relative; width: 100%; margin-bottom: 16px; display: block; }
-        .search-box { width: 100%; box-sizing: border-box; padding: 12px 40px 12px 16px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--card-bg); color: #fff; outline: none; display: block; }
-        .search-box:focus { border-color: var(--primary); }
+        /* カードと設定項目 */
+        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 16px; width: 100%; }
+        .card-title { font-size: 14px; font-weight: 700; color: var(--text-sub); margin: 8px 4px; text-transform: uppercase; letter-spacing: 0.5px; }
         
-        /* クリアボタン(×)の見た目 */
-        .search-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-sub); font-size: 22px; display: none; user-select: none; padding: 4px; line-height: 1; z-index: 10; }
-        .search-clear:hover { color: #fff; }
+        .setting-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); gap: 12px; width: 100%; }
+        .setting-item:last-child { border-bottom: none; }
+        
+        .setting-info { display: flex; flex-direction: column; flex-grow: 1; flex-shrink: 1; min-width: 0; }
+        .setting-label { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+        .setting-desc { font-size: 11px; color: var(--text-sub); line-height: 1.4; word-break: break-all; }
 
-        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-        #apps-list { display: flex; flex-direction: column; }
-        .app-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); }
-        .app-item:last-child { border-bottom: none; }
-        .app-info { display: flex; flex-direction: column; min-width: 0; flex-grow: 1; margin-right: 16px; }
-        .label { font-weight: 600; font-size: 15px; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .pkg-name { font-size: 11px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; margin-top: 2px; }
-        select { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: #2f2f36; font-size: 13px; color: #fff; font-weight: 600; outline: none; cursor: pointer; }
+        /* スイッチ（トグル） */
+        .switch { position: relative; display: inline-block; width: 46px; height: 26px; flex-shrink: 0; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3e3e46; transition: .3s; border-radius: 26px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* セレクトボックス */
+        select { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: #2f2f36; font-size: 13px; color: #fff; font-weight: 600; outline: none; cursor: pointer; min-width: 110px; text-align: center; }
         select:focus { border-color: var(--primary); }
+
+        /* アプリ一覧用 */
+        .search-container { position: relative; margin-bottom: 12px; width: 100%; }
+        .search-box { width: 100%; padding: 10px 36px 10px 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 14px; outline: none; }
+        .search-box:focus { border-color: var(--primary); }
+        .search-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-sub); font-size: 18px; cursor: pointer; display: none; }
+
+        .app-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--border); gap: 8px; width: 100%; }
+        .app-item:last-child { border-bottom: none; }
+        .app-item.pinned { background: rgba(33, 150, 243, 0.05); } 
+        
+        .app-info { display: flex; flex-direction: column; min-width: 0; flex-grow: 1; }
+        .app-label { font-size: 14px; font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .app-pkg { font-size: 11px; color: var(--text-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; }
+
+        /* ボトムナビゲーション */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: #1e1e22; border-top: 1px solid var(--border); display: table; width: 100%; table-layout: fixed; z-index: 100; }
+        .nav-item { display: table-cell; text-align: center; vertical-align: middle; color: var(--text-sub); font-size: 11px; cursor: pointer; }
+        .nav-item.active { color: var(--primary); font-weight: bold; }
+        .nav-icon { display: block; font-size: 18px; margin-bottom: 2px; }
+
+        /* トースト通知 */
+        #toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #ff9800;
+            color: #000;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s;
+            opacity: 0;
+            white-space: nowrap;
+            text-align: center;
+        }
+        #toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
 
     <h2>Touch Driver Fixer 設定</h2>
-    
-    <div class="hint-container">
-        <p class="hint">未設定のアプリ、および一覧にないシステムコアは自動的に<b>「高速モード」</b>で動作します。</p>
-        <span id="help-toggle" class="help-btn">?</span>
+    <div id="driver-status" class="driver-badge">ドライバ判別中...</div>
+
+    <div id="page-touch" class="page active">
+        <div class="card-title">基本制御オプション</div>
+        <div class="card">
+            <div class="setting-item">
+                <div class="setting-info">
+                    <span class="setting-label">画面更新サービス (要再起動)</span>
+                    <span class="setting-desc">ホームボタンを無効化してタッチ監視ループを動かします。OFFにすると元の挙動に戻ります。</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="service-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <span class="setting-label">パームリジェクション感度</span>
+                    <span class="setting-desc">数値を大きくするとタッチフリーズがなくなります。ただ、それに伴いゴーストタッチになる可能性も上がります。（おすすめ: 3）</span>
+                </div>
+                <select id="inject-select">
+                    <option value="1">1 (最高感度)</option>
+                    <option value="2">2</option>
+                    <option value="3">3 (標準)</option>
+                    <option value="4">4 (誤触防止)</option>
+                </select>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <span class="setting-label">画面プロファイル最適化</span>
+                    <span class="setting-desc">画面の動作プロファイルを切り替えます。onだとひまっせタイマーに効果あり（と思われる）</span>
+                </div>
+                <select id="screen-select">
+                    <option value="on">標準 (ON)</option>
+                    <option value="auto">自動 (AUTO)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="card-title">アプリ別リカバリモード指定</div>
+        <div class="search-container">
+            <input type="text" id="search" class="search-box" placeholder="アプリ名・パッケージ名で検索...">
+            <span id="search-clear" class="search-clear">&times;</span>
+        </div>
+        <div class="card">
+            <div id="apps-list" style="padding: 16px; text-align: center; color: var(--text-sub); font-size: 14px;">アプリ一覧を読み込み中...</div>
+        </div>
     </div>
 
-    <div id="help-box" class="help-box">
-        <p><b>・高速モード</b><br>処理は一瞬で終わりますが、一部のアプリ（ゲームや動画など）が稀に落ちることがあります。</p>
-        <p><b>・安定モード</b><br>アプリが落ちるのを確実に防ぎますが、処理に約3秒間かかります。</p>
+    <div id="page-perf" class="page">
+        <div class="card-title">パフォーマンスオプション</div>
+        <div class="card">
+            <div class="setting-item">
+                <div class="setting-info">
+                    <span class="setting-label">CPUガバナー設定</span>
+                    <span class="setting-desc">端末のCPU制御モードを変更します。動作最優先する場合は「performance」、電池持ちなら「powersave」がおすすめです。</span>
+                </div>
+                <select id="cpu-governor-select">
+                    <option value="schedutil">schedutil (標準)</option>
+                    <option value="performance">performance (高速)</option>
+                    <option value="powersave">powersave (省電力)</option>
+                </select>
+            </div>
+        </div>
     </div>
 
-    <div class="search-container">
-        <input type="text" id="search" class="search-box" placeholder="アプリ名またはパッケージ名で検索...">
-        <span id="search-clear" class="search-clear">&times;</span>
-    </div>
+    <nav class="bottom-nav">
+        <div class="nav-item active" id="nav-touch">
+            <span class="nav-icon">🛠</span>
+            <span>タッチパネル</span>
+        </div>
+        <div class="nav-item" id="nav-perf">
+            <span class="nav-icon">⚡</span>
+            <span>パフォーマンス</span>
+        </div>
+    </nav>
 
-    <div class="card">
-        <div id="apps-list">アプリ一覧を読み込み中...</div>
-    </div>
+    <div id="toast">この設定を反映させるには再起動が必要です</div>
 
     <template id="app-template">
         <div class="app-item">
             <div class="app-info">
-                <span class="label"></span>
-                <span class="pkg-name"></span>
+                <span class="app-label"></span>
+                <span class="app-pkg"></span>
             </div>
             <select class="mode-select">
                 <option value="fast">高速</option>
-                <option value="stable">安定</option>
+                <option value="stable" id="opt-stable">安定</option>
             </select>
         </div>
     </template>
