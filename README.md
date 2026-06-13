@@ -1,4 +1,4 @@
-# Touch Driver Fixer v2.1
+# Touch Driver Fixer
 
 チャレンジパッドNextにおけるタッチパネルのフリーズ対策（自動復旧）と、画面更新サービス（物理ホームボタンの無効化・タッチ監視ループ）を一本化した、統合Magisk / KernelSUモジュールです。
 
