@@ -1,5 +1,7 @@
 # Touch Driver Fixer
 
+<img width="1920" height="1200" alt="Image" src="https://github.com/user-attachments/assets/ba0023de-c232-46d7-b027-6d02e048fcbd" />
+
 チャレンジパッドNextにおけるタッチパネルのフリーズ対策（自動復旧）と、画面更新サービス（物理ホームボタンの無効化・タッチ監視ループ）を一本化した、統合Magisk / KernelSUモジュールです。
 
 本バージョンでは、お使いの端末に実際にインストールされているアプリ（サードパーティ製アプリおよび主要なGoogle系アプリ）だけを自動判別してスマートに一覧表示する専用の設定画面（WebUI）を搭載しています。
