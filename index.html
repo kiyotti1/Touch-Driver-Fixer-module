@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Touch Driver Fixer 設定</title>
+    <title>Touch Driver Fixer v3.0 設定</title>
     <style>
         :root {
             --bg: #1a1a1e;
@@ -22,12 +22,11 @@
             background: var(--bg); 
             color: var(--text); 
             -webkit-tap-highlight-color: transparent; 
-            padding-bottom: 80px;
+            padding-bottom: 40px;
             overflow-x: hidden;
         }
         h2 { font-size: 20px; font-weight: 700; color: #fff; margin: 0 0 16px 0; padding-bottom: 6px; border-bottom: 2px solid var(--primary); }
         
-        /* 緑に輝くドライババッジ */
         .driver-badge { 
             display: inline-flex; 
             align-items: center; 
@@ -51,12 +50,7 @@
             margin-right: 8px;
             box-shadow: 0 0 8px var(--accent);
         }
-        
-        /* ページ管理 */
-        .page { display: none; width: 100%; }
-        .page.active { display: block; }
 
-        /* カードと設定項目 */
         .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 16px; width: 100%; }
         .card-title { font-size: 14px; font-weight: 700; color: var(--text-sub); margin: 8px 4px; text-transform: uppercase; letter-spacing: 0.5px; }
         
@@ -67,7 +61,6 @@
         .setting-label { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 2px; }
         .setting-desc { font-size: 11px; color: var(--text-sub); line-height: 1.4; word-break: break-all; }
 
-        /* スイッチ（トグル） */
         .switch { position: relative; display: inline-block; width: 46px; height: 26px; flex-shrink: 0; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3e3e46; transition: .3s; border-radius: 26px; }
@@ -75,34 +68,12 @@
         input:checked + .slider { background-color: var(--primary); }
         input:checked + .slider:before { transform: translateX(20px); }
 
-        /* セレクトボックス */
         select { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: #2f2f36; font-size: 13px; color: #fff; font-weight: 600; outline: none; cursor: pointer; min-width: 110px; text-align: center; }
         select:focus { border-color: var(--primary); }
 
-        /* アプリ一覧用 */
-        .search-container { position: relative; margin-bottom: 12px; width: 100%; }
-        .search-box { width: 100%; padding: 10px 36px 10px 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 14px; outline: none; }
-        .search-box:focus { border-color: var(--primary); }
-        .search-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-sub); font-size: 18px; cursor: pointer; display: none; }
-
-        .app-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--border); gap: 8px; width: 100%; }
-        .app-item:last-child { border-bottom: none; }
-        .app-item.pinned { background: rgba(33, 150, 243, 0.05); } 
-        
-        .app-info { display: flex; flex-direction: column; min-width: 0; flex-grow: 1; }
-        .app-label { font-size: 14px; font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .app-pkg { font-size: 11px; color: var(--text-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; }
-
-        /* ボトムナビゲーション */
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: #1e1e22; border-top: 1px solid var(--border); display: table; width: 100%; table-layout: fixed; z-index: 100; }
-        .nav-item { display: table-cell; text-align: center; vertical-align: middle; color: var(--text-sub); font-size: 11px; cursor: pointer; }
-        .nav-item.active { color: var(--primary); font-weight: bold; }
-        .nav-icon { display: block; font-size: 18px; margin-bottom: 2px; }
-
-        /* トースト通知 */
         #toast {
             position: fixed;
-            bottom: 80px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%) translateY(100px);
             background: #ff9800;
@@ -126,100 +97,74 @@
 </head>
 <body>
 
-    <h2>Touch Driver Fixer 設定</h2>
+    <h2>Touch Driver Fixer v3.0 設定</h2>
     <div id="driver-status" class="driver-badge">ドライバ判別中...</div>
 
-    <div id="page-touch" class="page active">
-        <div class="card-title">基本制御オプション</div>
-        <div class="card">
-            <div class="setting-item">
-                <div class="setting-info">
-                    <span class="setting-label">画面更新サービス (要再起動)</span>
-                    <span class="setting-desc">ホームボタンを無効化してタッチ監視ループを動かします。OFFにすると元の挙動に戻ります。</span>
-                </div>
-                <label class="switch">
-                    <input type="checkbox" id="service-switch">
-                    <span class="slider"></span>
-                </label>
+    <div class="card-title">基本制御オプション</div>
+    <div class="card">
+        <div class="setting-item">
+            <div class="setting-info">
+                <span class="setting-label">画面更新サービス (要再起動)</span>
+                <span class="setting-desc">ホームボタンを無効化してタッチ監視ループを動かします。</span>
             </div>
+            <label class="switch">
+                <input type="checkbox" id="service-switch">
+                <span class="slider"></span>
+            </label>
+        </div>
 
-            <div class="setting-item">
-                <div class="setting-info">
-                    <span class="setting-label">パームリジェクション感度</span>
-                    <span class="setting-desc">数値を大きくするとタッチフリーズがなくなります。ただ、それに伴いゴーストタッチになる可能性も上がります。（おすすめ: 3）</span>
-                </div>
-                <select id="inject-select">
-                    <option value="1">1 (最高感度)</option>
-                    <option value="2">2</option>
-                    <option value="3">3 (標準)</option>
-                    <option value="4">4 (誤触防止)</option>
-                </select>
+        <div class="setting-item" id="palm-reject-container">
+            <div class="setting-info">
+                <span class="setting-label">感度設定 (要再起動)</span>
+                <span class="setting-desc">推奨値: 4（NVT専用設定）</span>
             </div>
-
-            <div class="setting-item">
-                <div class="setting-info">
-                    <span class="setting-label">画面プロファイル最適化</span>
-                    <span class="setting-desc">画面の動作プロファイルを切り替えます。onだとひまっせタイマーに効果あり（と思われる）</span>
-                </div>
-                <select id="screen-select">
-                    <option value="on">標準 (ON)</option>
-                    <option value="auto">自動 (AUTO)</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="card-title">アプリ別リカバリモード指定</div>
-        <div class="search-container">
-            <input type="text" id="search" class="search-box" placeholder="アプリ名・パッケージ名で検索...">
-            <span id="search-clear" class="search-clear">&times;</span>
-        </div>
-        <div class="card">
-            <div id="apps-list" style="padding: 16px; text-align: center; color: var(--text-sub); font-size: 14px;">アプリ一覧を読み込み中...</div>
-        </div>
-    </div>
-
-    <div id="page-perf" class="page">
-        <div class="card-title">パフォーマンスオプション</div>
-        <div class="card">
-            <div class="setting-item">
-                <div class="setting-info">
-                    <span class="setting-label">CPUガバナー設定</span>
-                    <span class="setting-desc">端末のCPU制御モードを変更します。動作最優先する場合は「performance」、電池持ちなら「powersave」がおすすめです。</span>
-                </div>
-                <select id="cpu-governor-select">
-                    <option value="schedutil">schedutil (標準)</option>
-                    <option value="performance">performance (高速)</option>
-                    <option value="powersave">powersave (省電力)</option>
-                </select>
-            </div>
-        </div>
-    </div>
-
-    <nav class="bottom-nav">
-        <div class="nav-item active" id="nav-touch">
-            <span class="nav-icon">🛠</span>
-            <span>タッチパネル</span>
-        </div>
-        <div class="nav-item" id="nav-perf">
-            <span class="nav-icon">⚡</span>
-            <span>パフォーマンス</span>
-        </div>
-    </nav>
-
-    <div id="toast">この設定を反映させるには再起動が必要です</div>
-
-    <template id="app-template">
-        <div class="app-item">
-            <div class="app-info">
-                <span class="app-label"></span>
-                <span class="app-pkg"></span>
-            </div>
-            <select class="mode-select">
-                <option value="fast">高速</option>
-                <option value="stable" id="opt-stable">安定</option>
+            <select id="inject-select">
+                <option value="1">1 (最高感度)</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4 (標準/誤触防止)</option>
             </select>
         </div>
-    </template>
+
+        <div class="setting-item">
+            <div class="setting-info">
+                <span class="setting-label">デバイス Control ノード制御</span>
+                <span class="setting-desc">/sys/bus/i2c/devices/*/power/control への制御設定</span>
+            </div>
+            <select id="control-select">
+                <option value="on">常時 ON (推奨)</option>
+                <option value="auto">自動 (AUTO)</option>
+            </select>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-info">
+                <span class="setting-label">画面プロファイル最適化</span>
+                <span class="setting-desc">画面動作プロファイル設定 (soc:touch)</span>
+            </div>
+            <select id="screen-select">
+                <option value="on">標準 (ON)</option>
+                <option value="auto">自動 (AUTO)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="card-title">パフォーマンスオプション</div>
+    <div class="card">
+        <div class="setting-item">
+            <div class="setting-info">
+                <span class="setting-label">CPUガバナー設定</span>
+                <span class="setting-desc">動作優先「performance」、標準「schedutil」、省電力「powersave」</span>
+            </div>
+            <select id="cpu-governor-select">
+                <option value="schedutil">schedutil (標準)</option>
+                <option value="performance">performance (高速)</option>
+                <option value="powersave">powersave (省電力)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="toast">この設定を反映させるには再起動が必要です</div>
 
     <script src="script.js"></script>
 </body>

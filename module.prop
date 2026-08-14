@@ -1,7 +1,7 @@
 id=touch-reset
 name=Touch Driver Fixer & HomeButton Disable
-version=v2.1
-versionCode=4
+version=v3.0
+versionCode=5
 author=kiyotti
 description=対ひまっせタイマーモジュール。ドライバの最適化、タッチフリーズからの復帰を提供します。
 updateJson=https://raw.githubusercontent.com/kiyotti1/Touch-Driver-Fixer-module/main/update.json

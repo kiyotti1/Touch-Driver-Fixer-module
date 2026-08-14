@@ -1,15 +1,17 @@
 #!/system/bin/sh
 
 # ==========================================================
-# Touch Driver Fixer v2.1 - Core Service
+# Touch Driver Fixer v3.0 - Core Service (FTS Compatible)
 # ==========================================================
 
 CONFIG_FILE="/data/adb/touch-reset_config.json"
 LOCK=/dev/.nvt_fix_running
+MODPATH="/data/adb/modules/touch-reset"
 
 # ----- デフォルト設定値 -----
-INJECT_VAL="3"
+INJECT_VAL="4"
 SCREEN_UPD="on"
+CONTROL_VAL="on"
 CPU_GOV="schedutil"
 SERVICE_ENABLED="true"
 
@@ -20,6 +22,9 @@ if [ -f "$CONFIG_FILE" ]; then
     
     SCU=$(grep -o '"_screen_update":"[^"]*' "$CONFIG_FILE" | cut -d'"' -f4)
     [ ! -z "$SCU" ] && SCREEN_UPD="$SCU"
+
+    CTL=$(grep -o '"_control_value":"[^"]*' "$CONFIG_FILE" | cut -d'"' -f4)
+    [ ! -z "$CTL" ] && CONTROL_VAL="$CTL"
     
     CGV=$(grep -o '"_cpu_governor":"[^"]*' "$CONFIG_FILE" | cut -d'"' -f4)
     [ ! -z "$CGV" ] && CPU_GOV="$CGV"
@@ -28,117 +33,111 @@ if [ -f "$CONFIG_FILE" ]; then
     [ ! -z "$SVE" ] && SERVICE_ENABLED="$SVE"
 fi
 
-# ----- 高速モード（リバインド処理）の関数 -----
-do_fast_rebind() {
-    if [ -d "/sys/bus/i2c/drivers/NVT-ts" ]; then
-        echo "3-0062" > "/sys/bus/i2c/drivers/NVT-ts/unbind" 2>/dev/null
-        echo "3-0062" > "/sys/bus/i2c/drivers/NVT-ts/bind" 2>/dev/null
-    elif [ -d "/sys/bus/i2c/drivers/fts_ts" ]; then
-        for dev in $(ls /sys/bus/i2c/drivers/fts_ts/ | grep -E '^[0-9]+-[0-9a-fA-F]+$'); do
-            echo "$dev" > "/sys/bus/i2c/drivers/fts_ts/unbind" 2>/dev/null
-            echo "$dev" > "/sys/bus/i2c/drivers/fts_ts/bind" 2>/dev/null
-        done
+# FTS ドライバ判別 (デバイスノードが存在する場合のみFTSとして扱う)
+IS_FTS=0
+if [ -d "/sys/bus/i2c/drivers/fts_ts/3-0038" ] || [ -d "/sys/bus/i2c/drivers/fts_ts/3-0062" ]; then
+    IS_FTS=1
+fi
+
+# ==========================================================
+# 起動時初期化シーケンス
+# ==========================================================
+log -t TOUCH_FIXER "Starting v3.0 Init Sequence..."
+
+if [ $IS_FTS -eq 1 ]; then
+    # --- FTS環境 ---
+    log -t TOUCH_FIXER "FTS driver detected. Skipping custom .ko load to prevent crash."
+else
+    # --- NVT環境 ---
+    echo "$INJECT_VAL" > /sys/bus/i2c/devices/3-0062/tp_palm_reject 2>/dev/null
+
+    INSMOD_SUCCESS=0
+    if [ -f "$MODPATH/nvt_ts.ko" ]; then
+        echo "3-0062" > /sys/bus/i2c/drivers/NVT-ts/unbind 2>/dev/null
+        insmod "$MODPATH/nvt_ts.ko" 2>/dev/null
+        if [ $? -eq 0 ]; then
+            INSMOD_SUCCESS=1
+            log -t TOUCH_FIXER "Custom nvt_ts.ko inserted."
+        fi
     fi
-}
 
-# 1. パームリジェクション値の初期適用
-echo "$INJECT_VAL" > /sys/bus/i2c/devices/3-0062/tp_palm_reject 2>/dev/null
+    if [ $INSMOD_SUCCESS -eq 1 ]; then
+        echo "3-0062" > /sys/bus/i2c/drivers/NVT-ts/bind 2>/dev/null
+        echo "1" > /sys/bus/i2c/devices/3-0062/tp_fw_updating 2>/dev/null
+        echo "1" > /sys/bus/i2c/devices/3-0062/nvt_charger_plugin 2>/dev/null
+    else
+        echo "3-0062" > /sys/bus/i2c/drivers/NVT-ts/bind 2>/dev/null
+        log -t TOUCH_FIXER "Fallback to stock NVT driver."
+    fi
+fi
 
-# 2. 画面プロファイル最適化の初期適用
+# Device Power Control ノードの更新 (NVT: 3-0062, FTS: 3-0038)
+for ctrl in \
+    /sys/bus/i2c/devices/3-0062/power/control \
+    /sys/bus/i2c/devices/3-0038/power/control
+do
+    [ -e "$ctrl" ] && echo "$CONTROL_VAL" > "$ctrl" 2>/dev/null
+done
+
+# 画面プロファイル & CPUガバナー設定
 for p in /sys/devices/platform/soc/soc:touch@/power/control /sys/devices/platform/soc/soc:touch/power/control
 do
     [ -e "$p" ] && echo "$SCREEN_UPD" > "$p" 2>/dev/null
 done
 
-# 3. CPUガバナーの初期適用
 for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 do
     [ -e "$g" ] && echo "$CPU_GOV" > "$g" 2>/dev/null
 done
 
-log -t TOUCH_FIXER "Initial settings applied. Governor: $CPU_GOV"
-
-# 4. 画面更新サービスが「OFF」の場合の処理
+# ==========================================================
+# 監視ループ制御
+# ==========================================================
 if [ "$SERVICE_ENABLED" = "false" ]; then
     rm -f /data/adb/modules/touch-reset/system/usr/keylayout/mtk-kpd.kl 2>/dev/null
     rm -f /data/adb/modules/touch-reset/system/vendor/usr/keylayout/mtk-kpd.kl 2>/dev/null
-    log -t TOUCH_FIXER "Update Service is OFF. HomeButton restored. Exit loop."
+    log -t TOUCH_FIXER "Service OFF. Exit loop."
     exit 0
 fi
 
-log -t TOUCH_FIXER "Update Service is ON. Starting HomeButton monitor loop."
-
-# 5. HOMEキー監視ループ
+# HOMEキー監視ループ (復旧トリガー)
 while true
 do
     line=$(getevent -c 1 /dev/input/event1 2>/dev/null)
 
-    # KEY_HOME UP 検知
     [ "$line" != "0001 0066 00000000" ] && continue
     [ -e "$LOCK" ] && continue
 
     (
         touch "$LOCK"
 
-        # 最前面アプリのパッケージ名を取得
-        FOCUS_INFO=$(dumpsys window | grep -E 'mCurrentFocus|mFocusedApp|mResumedActivity' | head -n 1)
-        CURRENT_APP=$(echo "$FOCUS_INFO" | grep -oE '[a-zA-Z0-9._]+\/[a-zA-Z0-9._]+' | head -n 1 | cut -d/ -f1)
-        if [ -z "$CURRENT_APP" ]; then
-            CURRENT_APP=$(echo "$FOCUS_INFO" | grep -oE 'u0 [a-zA-Z0-9._]+' | head -n 1 | awk '{print $2}')
-        fi
-        
-                # --- [修正] ここから判定ロジックを100%確実なものに変更 ---
-        TARGET_MODE="fast"
-        if [ -f "$CONFIG_FILE" ] && [ ! -z "$CURRENT_APP" ]; then
-            # JSONから該当パッケージの設定値（"stable" または "fast"）を安全に抽出
-            APP_SETTING=$(grep -o "\"${CURRENT_APP}\":\"[^\"]*" "$CONFIG_FILE" | cut -d'"' -f4)
-            if [ "$APP_SETTING" = "stable" ]; then
-                TARGET_MODE="stable"
+           if [ $IS_FTS -eq 1 ]; then
+            # FTSの場合は存在するデバイスID（3-0038 または 3-0062）を特定して unbind -> bind
+            FTS_DEV=""
+            if [ -d "/sys/bus/i2c/drivers/fts_ts/3-0038" ]; then
+                FTS_DEV="3-0038"
+            elif [ -d "/sys/bus/i2c/drivers/fts_ts/3-0062" ]; then
+                FTS_DEV="3-0062"
             fi
-        fi
 
-        # リカバリ処理の実行
-        if [ "$TARGET_MODE" = "stable" ]; then
-            # 安定モード：プロシージャを直接叩く（バインド処理は走らない）
-            cat /proc/nvt_selftest > /dev/null 2>/dev/null
-            log -t TOUCH_FIXER "Recovery triggered: STABLE mode for $CURRENT_APP"
-        else
-            # 高速モード：ドライバのリバインドを実行
-            do_fast_rebind
-            log -t TOUCH_FIXER "Recovery triggered: FAST mode (rebind) for $CURRENT_APP"
-        fi
-        # --- 修正ここまで ---
-
-        rm -f "$LOCK"
-    ) &
-done
-        CURRENT_APP=$(echo "$FOCUS_INFO" | grep -oE '[a-zA-Z0-9._]+\/[a-zA-Z0-9._]+' | head -n 1 | cut -d/ -f1)
-        
-        if [ -z "$CURRENT_APP" ]; then
-            CURRENT_APP=$(echo "$FOCUS_INFO" | grep -oE 'u0 [a-zA-Z0-9._]+' | head -n 1 | awk '{print $2}')
-        fi
-        
-        # 2. デフォルトのモードは高速(fast)
-        TARGET_MODE="fast"
-
-        # 3. 設定ファイルが存在する場合、現在のアプリが「stable」に指定されているかチェック
-        if [ -f "$CONFIG_FILE" ] && [ ! -z "$CURRENT_APP" ]; then
-            if grep -q "\"${CURRENT_APP}\":\"stable\"" "$CONFIG_FILE"; then
-                TARGET_MODE="stable"
+            if [ -n "$FTS_DEV" ]; then
+                echo "$FTS_DEV" > /sys/bus/i2c/drivers/fts_ts/unbind 2>/dev/null
+                echo "$FTS_DEV" > /sys/bus/i2c/drivers/fts_ts/bind 2>/dev/null
+                log -t TOUCH_FIXER "FTS Recovery triggered: unbind/bind executed ($FTS_DEV)."
             fi
-        fi
-
-        log -t TOUCH_FIXER "HOME UP -> App: $CURRENT_APP | Mode: $TARGET_MODE"
-
-        # 4. モードに応じて分岐実行
-        if [ "$TARGET_MODE" = "stable" ]; then
-            cat /proc/nvt_selftest > /dev/null 2>/dev/null
         else
-            echo "3-0062" > "/sys/bus/i2c/drivers/NVT-ts/unbind" 2>/dev/null
-            sleep 0.05
-            echo "3-0062" > "/sys/bus/i2c/drivers/NVT-ts/bind" 2>/dev/null
+            # NVT の場合は nvt_quick_reset を直接実行
+            if [ -e "/sys/bus/i2c/devices/3-0062/nvt_quick_reset" ]; then
+                echo "1" > /sys/bus/i2c/devices/3-0062/nvt_quick_reset 2>/dev/null
+                log -t TOUCH_FIXER "NVT Recovery triggered: nvt_quick_reset executed."
+            else
+                echo "3-0062" > /sys/bus/i2c/drivers/NVT-ts/unbind 2>/dev/null
+                echo "3-0062" > /sys/bus/i2c/drivers/NVT-ts/bind 2>/dev/null
+                log -t TOUCH_FIXER "NVT Fallback Recovery triggered: Rebind executed."
+            fi
         fi
 
         rm -f "$LOCK"
     ) &
 done
+

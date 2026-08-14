@@ -25,21 +25,7 @@ async function runCmd(cmd) {
 const CONFIG_PATH = '/data/adb/touch-reset_config.json';
 const MOD_PATH = '/data/adb/modules/touch-reset';
 let currentConfig = {};
-let isNvtDriver = true;
 
-// 主要Googleアプリ＋ご指定いただいたアプリのパッケージ名・表示名辞書
-const APP_NAME_MAP = {
-    "com.android.vending": "Google Play ストア",
-    "com.google.android.apps.photos": "Google フォト",
-    "com.google.android.apps.docs": "Google ドライブ",
-    "com.google.android.gms": "Google Play 開発者サービス",
-    "com.google.android.apps.bard": "Gemini",
-    "jp.linecorp.linemusic.android": "LINE MUSIC",
-    "jp.naver.line.android": "LINE",
-    "jp.bookwalker.kreader.android.epub": "BOOK☆WALKER"
-};
-
-// トースト通知を表示する関数
 function showToast() {
     const toast = document.getElementById("toast");
     toast.classList.add("show");
@@ -54,20 +40,19 @@ async function saveConfig() {
 }
 
 async function main() {
-    // 1. ドライバの自動判別
-    let checkNvt = await runCmd("[ -d '/sys/bus/i2c/drivers/NVT-ts/3-0062' ] && echo 'NVT' || echo 'NOT'");
-    let checkFts = await runCmd("[ -d '/sys/bus/i2c/drivers/fts_ts' ] && echo 'FTS' || echo 'NOT'");
-    
+    // 1. ドライバの判別（実際に接続されているデバイスの存在を確認）
+    let checkFts = await runCmd("[ -d '/sys/bus/i2c/drivers/fts_ts/3-0038' ] || [ -d '/sys/bus/i2c/drivers/fts_ts/3-0062' ] && echo 'FTS' || echo 'NOT'");
+    let isFts = checkFts && checkFts.includes("FTS");
+
     let badge = document.getElementById("driver-status");
-    if (checkNvt && checkNvt.includes("NVT")) {
-        badge.textContent = "検出ドライバ: NVT";
-        isNvtDriver = true;
-    } else if (checkFts && checkFts.includes("FTS")) {
-        badge.textContent = "検出ドライバ: FTS";
-        isNvtDriver = false;
+    if (isFts) {
+        badge.textContent = "検出ドライバ: FTS (一部機能制限あり)";
+        document.getElementById("palm-reject-container").style.opacity = "0.4";
+        document.getElementById("inject-select").disabled = true;
     } else {
-        badge.textContent = "検出ドライバ: 汎用 (NVT互換動作)";
-        isNvtDriver = true;
+        badge.textContent = "検出ドライバ: NVT";
+        document.getElementById("palm-reject-container").style.opacity = "1";
+        document.getElementById("inject-select").disabled = false;
     }
 
     // 2. 設定ファイルの読み込み
@@ -78,18 +63,21 @@ async function main() {
         currentConfig = {};
     }
 
-    // 3. UIコントロールの初期値セット
+    // 3. UIコントロールの初期値設定
     const serviceSwitch = document.getElementById("service-switch");
     const injectSelect = document.getElementById("inject-select");
+    const controlSelect = document.getElementById("control-select");
     const screenSelect = document.getElementById("screen-select");
     const govSelect = document.getElementById("cpu-governor-select");
 
     serviceSwitch.checked = currentConfig["_service_enabled"] !== "false";
-    injectSelect.value = currentConfig["_inject_value"] || "3";
+    injectSelect.value = currentConfig["_inject_value"] || "4";
+    controlSelect.value = currentConfig["_control_value"] || "on";
     screenSelect.value = currentConfig["_screen_update"] || "on";
     govSelect.value = currentConfig["_cpu_governor"] || "schedutil";
 
-    // 画面更新サービス（トグル）切り替えイベント
+    // 4. イベントハンドラーの設定
+
     serviceSwitch.addEventListener("change", async () => {
         let isChecked = serviceSwitch.checked;
         currentConfig["_service_enabled"] = isChecked ? "true" : "false";
@@ -122,10 +110,24 @@ async function main() {
     });
 
     injectSelect.addEventListener("change", async () => {
-        let val = injectSelect.value;
-        currentConfig["_inject_value"] = val;
+        currentConfig["_inject_value"] = injectSelect.value;
         await saveConfig();
-        await runCmd(`echo ${val} > /sys/bus/i2c/devices/3-0062/tp_palm_reject 2>/dev/null`);
+        showToast();
+    });
+
+    // Device Power Control ノードの書き込み (NVT / FTS 両対応)
+    controlSelect.addEventListener("change", async () => {
+        let val = controlSelect.value;
+        currentConfig["_control_value"] = val;
+        await saveConfig();
+        
+        let targets = [
+            '/sys/bus/i2c/devices/3-0062/power/control',
+            '/sys/bus/i2c/devices/3-0038/power/control'
+        ];
+        for (let target of targets) {
+            await runCmd(`[ -e "${target}" ] && echo "${val}" > "${target}" 2>/dev/null`);
+        }
     });
 
     screenSelect.addEventListener("change", async () => {
@@ -141,134 +143,7 @@ async function main() {
         let val = govSelect.value;
         currentConfig["_cpu_governor"] = val;
         await saveConfig();
-        await runCmd(`for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do [ -e "$g" ] && echo "${val}" > "$g"; done 2>/dev/null`);
-    });
-
-    // 4. ナビゲーション
-    const navTouch = document.getElementById("nav-touch");
-    const navPerf = document.getElementById("nav-perf");
-    const pageTouch = document.getElementById("page-touch");
-    const pagePerf = document.getElementById("page-perf");
-
-    navTouch.addEventListener("click", () => {
-        navTouch.classList.add("active");
-        navPerf.classList.remove("active");
-        pageTouch.classList.add("active");
-        pagePerf.classList.remove("active");
-    });
-
-    navPerf.addEventListener("click", () => {
-        navPerf.classList.add("active");
-        navTouch.classList.remove("active");
-        pagePerf.classList.add("active");
-        pageTouch.classList.remove("active");
-    });
-
-    // 5. アプリ一覧のビルド
-    const appsList = document.getElementById("apps-list");
-    const searchInput = document.getElementById("search");
-    const searchClear = document.getElementById("search-clear");
-    const appTemplate = document.getElementById("app-template").content;
-
-    // サードパーティアプリ一覧を取得
-    let rawApps = await runCmd("pm list packages -3");
-    let packages = rawApps ? rawApps.split("\n")
-                                   .map(line => line.replace("package:", "").trim())
-                                   .filter(p => p.length > 0) : [];
-
-    // 主要Googleアプリ5つのうち、実機にインストールされているものだけを選別して合流させる
-    const coreGooglePkgs = [
-        "com.android.vending",
-        "com.google.android.apps.photos",
-        "com.google.android.apps.docs",
-        "com.google.android.gms",
-        "com.google.android.apps.bard"
-    ];
-
-    for (let gPkg of coreGooglePkgs) {
-        let isInstalled = await runCmd(`pm path ${gPkg} >/dev/null 2>&1 && echo "YES" || echo "NO"`);
-        if (isInstalled && isInstalled.includes("YES")) {
-            packages.push(gPkg);
-        }
-    }
-
-    // 重複を除去してソート
-    packages = Array.from(new Set(packages));
-
-    // アプリ表示用レンダリング関数
-    function renderAppList() {
-        // 安定設定を最上位、それ以外は名前順ソート
-        packages.sort((a, b) => {
-            let modeA = currentConfig[a] || "fast";
-            let modeB = currentConfig[b] || "fast";
-            if (modeA === "stable" && modeB !== "stable") return -1;
-            if (modeA !== "stable" && modeB === "stable") return 1;
-            
-            let nameA = APP_NAME_MAP[a] || a.split(".").pop();
-            let nameB = APP_NAME_MAP[b] || b.split(".").pop();
-            return nameA.localeCompare(nameB);
-        });
-
-        appsList.textContent = "";
-
-        for (let pkg of packages) {
-            let appNode = document.importNode(appTemplate, true);
-            let itemDiv = appNode.querySelector(".app-item");
-            let labelEl = appNode.querySelector(".app-label");
-            let pkgEl = appNode.querySelector(".app-pkg");
-            let selectEl = appNode.querySelector(".mode-select");
-            let optStable = appNode.querySelector("#opt-stable");
-
-            // 辞書にあれば綺麗な日本語名、なければパッケージ末尾名
-            labelEl.textContent = APP_NAME_MAP[pkg] || pkg.split(".").pop();
-            pkgEl.textContent = pkg;
-            
-            if (!isNvtDriver && optStable) {
-                optStable.textContent = "安定 (FTS時は高速リバインドにフォールバック)";
-            }
-
-            let currentMode = currentConfig[pkg] || "fast";
-            selectEl.value = currentMode;
-
-            if (currentMode === "stable") {
-                itemDiv.classList.add("pinned");
-            }
-
-            selectEl.addEventListener("change", async () => {
-                currentConfig[pkg] = selectEl.value;
-                await saveConfig();
-                renderAppList();
-                filterApps();
-            });
-
-            appsList.appendChild(appNode);
-        }
-    }
-
-    // アプリ検索機能
-    function filterApps() {
-        let val = searchInput.value.trim().toLowerCase();
-        searchClear.style.display = val ? "block" : "none";
-        
-        let items = appsList.getElementsByClassName("app-item");
-        for (let item of items) {
-            let label = item.querySelector(".app-label").textContent.toLowerCase();
-            let pkg = item.querySelector(".app-pkg").textContent.toLowerCase();
-            if (label.includes(val) || pkg.includes(val)) {
-                item.style.display = "flex";
-            } else {
-                item.style.display = "none";
-            }
-        }
-    }
-
-    renderAppList();
-
-    searchInput.addEventListener("input", filterApps);
-    searchClear.addEventListener("click", () => {
-        searchInput.value = "";
-        filterApps();
-        searchInput.focus();
+        await runCmd(`for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do [ -e "$g" ] && echo "${val}" > "$g" 2>/dev/null; done`);
     });
 }
 
