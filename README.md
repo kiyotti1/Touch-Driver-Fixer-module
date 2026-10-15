@@ -36,4 +36,4 @@
 - すべての変更はユーザー自身の自己責任において行ってください。十分にバックアップを取得した上での導入を推奨します。
 
 ## サポートはこのdisordサーバーにて
-https://discord.gg/fxnVMCK32
+https://discord.gg/UvcJXGHtmv
